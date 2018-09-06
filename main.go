@@ -23,6 +23,10 @@ func main() {
 			}
 		}
 		fmt.Println(charValue)
+		// press q to quit.
+		if charValue == 'q' {
+			os.Exit(0)
+		}
 
 	}
 }
