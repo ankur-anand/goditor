@@ -41,7 +41,8 @@ func enableRawMode() (*unix.Termios, error) {
 	// (the default), this character is first converted to a newline (ASCII 10 decimal, ^J)
 	// before being passed to the reading proces
 
-	state.Iflag &^= (unix.IXON | unix.ICRNL)
+	// BRKINT - Disable Signal interrupt (SIGINT) on BREAK condition
+	state.Iflag &^= (unix.IXON | unix.ICRNL | unix.BRKINT)
 
 	//  OPOST - to disables output postprocessing "\n" to "\r\n" and
 
@@ -60,6 +61,16 @@ func enableRawMode() (*unix.Termios, error) {
 	// IEXTERN - Disable Ctrl-V
 
 	state.Lflag &^= (unix.ECHO | unix.ICANON | unix.ISIG | unix.IEXTEN)
+
+	// set timeout read
+	// VMIN - the minimum number of bytes of input needed before read,
+	//  Character-at-a-time input
+	state.Cc[unix.VMIN] = 1
+	// VTIME -the maximum amount of time to wait before read returns,
+	// It is in tenths of a second, so we set it to 1/10 of a second,
+	// or 100 milliseconds
+	// times out, it will return 0
+	state.Cc[unix.VTIME] = 1
 
 	//TCSANOW is TCSETS
 	err = unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, &state)
@@ -92,18 +103,22 @@ func main() {
 	for {
 		var err error
 		// read one byte
+		charValue = 'a'
 		charValue, err = reader.ReadByte()
 		if err != nil {
 			if err == io.EOF {
-				fmt.Println("END OF FILE")
+				disableRawMode(cookedState)
+				fmt.Printf("END OF FILE")
+				os.Exit(0)
 			}
+			disableRawMode(cookedState)
 			log.Fatalln(err)
 		}
 
 		if unicode.IsControl(rune(charValue)) == true {
-			fmt.Println(charValue)
+			fmt.Printf("%b\r\n", charValue)
 		} else {
-			fmt.Println(string(charValue))
+			fmt.Printf("%s\r\n", string(charValue))
 		}
 		// press q to quit.
 		if charValue == 'q' {
