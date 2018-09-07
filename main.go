@@ -20,25 +20,37 @@ const (
 // In raw mode none of thos things happens; you get every keystroke
 // immediately without waiting for a new line, and it's not echoed.
 // ^C doesn't cause SIGINT, and so on.
-func enableRawMode() {
+func enableRawMode() *unix.Termios {
 
 	cooked, err := unix.IoctlGetTermios(STDIN_FILENO, unix.TCGETS)
 	if err != nil {
 		panic(err)
 	}
 	state := *cooked
-
+	// The ECHO feature causes each key you type to be printed to the terminal,
+	// so you can see what you’re typing
 	state.Lflag &^= unix.ECHO
+
 	//TCSANOW is TCSETS
 	err = unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, &state)
+	if err != nil {
+		panic(err)
+	}
+
+	return cooked
+}
+
+// Disable raw mode at exit
+func disableRawMode(cookedState *unix.Termios) {
+	err := unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, cookedState)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func main() {
-	enableRawMode()
-	// obtain the Unix file descriptor for terminal/console
+	cookedState := enableRawMode()
+
 	var charValue byte
 	reader := bufio.NewReader(os.Stdin)
 	// Each Iteration, reader reads a byte of data from the
@@ -55,6 +67,8 @@ func main() {
 		}
 		// press q to quit.
 		if charValue == 'q' {
+			// disable the RAW MODE
+			disableRawMode(cookedState)
 			os.Exit(0)
 		}
 
