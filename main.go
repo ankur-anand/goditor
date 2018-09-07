@@ -30,7 +30,10 @@ func enableRawMode() (*unix.Termios, error) {
 	state := *cooked
 	// The ECHO feature causes each key you type to be printed to the terminal,
 	// so you can see what you’re typing
-	state.Lflag &^= unix.ECHO
+	// ICANON flag  to turn off canonical mode, so that input can be read, byte
+	// by byte instead of line-by-line.
+	// ln line-by-line mode you have to press Enter for program to read input.
+	state.Lflag &^= (unix.ECHO | unix.ICANON)
 
 	//TCSANOW is TCSETS
 	err = unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, &state)
