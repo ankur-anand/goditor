@@ -40,6 +40,11 @@ func enableRawMode() (*unix.Termios, error) {
 
 	state.Lflag &^= (unix.ECHO | unix.ICANON | unix.ISIG)
 
+	// IXON (enable start/stop output control)
+	// Disable control characters that Ctrl-S and Ctrl-Q produce
+
+	state.Iflag &^= unix.IXON
+
 	//TCSANOW is TCSETS
 	err = unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, &state)
 	if err != nil {
