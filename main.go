@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"os"
 
 	"golang.org/x/sys/unix"
@@ -20,11 +21,11 @@ const (
 // In raw mode none of thos things happens; you get every keystroke
 // immediately without waiting for a new line, and it's not echoed.
 // ^C doesn't cause SIGINT, and so on.
-func enableRawMode() *unix.Termios {
+func enableRawMode() (*unix.Termios, error) {
 
 	cooked, err := unix.IoctlGetTermios(STDIN_FILENO, unix.TCGETS)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	state := *cooked
 	// The ECHO feature causes each key you type to be printed to the terminal,
@@ -34,23 +35,26 @@ func enableRawMode() *unix.Termios {
 	//TCSANOW is TCSETS
 	err = unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, &state)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return cooked
+	return cooked, nil
 }
 
 // Disable raw mode at exit
-func disableRawMode(cookedState *unix.Termios) {
+func disableRawMode(cookedState *unix.Termios) error {
 	err := unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, cookedState)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
 func main() {
-	cookedState := enableRawMode()
-
+	cookedState, err := enableRawMode()
+	if err != nil {
+		log.Fatalln(err)
+	}
 	var charValue byte
 	reader := bufio.NewReader(os.Stdin)
 	// Each Iteration, reader reads a byte of data from the
@@ -64,11 +68,15 @@ func main() {
 			if err == io.EOF {
 				fmt.Println("END OF FILE")
 			}
+			log.Fatalln(err)
 		}
 		// press q to quit.
 		if charValue == 'q' {
 			// disable the RAW MODE
-			disableRawMode(cookedState)
+			err := disableRawMode(cookedState)
+			if err != nil {
+				log.Fatalln(err)
+			}
 			os.Exit(0)
 		}
 
