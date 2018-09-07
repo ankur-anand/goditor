@@ -29,19 +29,6 @@ func enableRawMode() (*unix.Termios, error) {
 		return nil, err
 	}
 	state := *cooked
-	// The ECHO feature causes each key you type to be printed to the terminal,
-	// so you can see what you’re typing
-
-	// ICANON flag  to turn off canonical mode, so that input can be read, byte
-	// by byte instead of line-by-line.
-	// ln line-by-line mode you have to press Enter for program to read input.
-
-	// ISIG - To disable signal-generating characters (INTR, QUIT, SUSP)
-	// Eg disable Ctrl-C(SIGINT) and Ctrl-Z(SIGTSTP) signals
-
-	// IEXTERN - Disable Ctrl-V
-
-	state.Lflag &^= (unix.ECHO | unix.ICANON | unix.ISIG | unix.IEXTEN)
 
 	// IXON (enable start/stop output control)
 	// Disable control characters that Ctrl-S and Ctrl-Q produce
@@ -55,6 +42,24 @@ func enableRawMode() (*unix.Termios, error) {
 	// before being passed to the reading proces
 
 	state.Iflag &^= (unix.IXON | unix.ICRNL)
+
+	//  OPOST - to disables output postprocessing "\n" to "\r\n" and
+
+	state.Oflag &^= (unix.OPOST)
+
+	// The ECHO feature causes each key you type to be printed to the terminal,
+	// so you can see what you’re typing
+
+	// ICANON flag  to turn off canonical mode, so that input can be read, byte
+	// by byte instead of line-by-line.
+	// ln line-by-line mode you have to press Enter for program to read input.
+
+	// ISIG - To disable signal-generating characters (INTR, QUIT, SUSP)
+	// Eg disable Ctrl-C(SIGINT) and Ctrl-Z(SIGTSTP) signals
+
+	// IEXTERN - Disable Ctrl-V
+
+	state.Lflag &^= (unix.ECHO | unix.ICANON | unix.ISIG | unix.IEXTEN)
 
 	//TCSANOW is TCSETS
 	err = unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, &state)
