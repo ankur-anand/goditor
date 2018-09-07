@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"unicode"
 
 	"golang.org/x/sys/unix"
 )
@@ -38,7 +39,9 @@ func enableRawMode() (*unix.Termios, error) {
 	// ISIG - To disable signal-generating characters (INTR, QUIT, SUSP)
 	// Eg disable Ctrl-C(SIGINT) and Ctrl-Z(SIGTSTP) signals
 
-	state.Lflag &^= (unix.ECHO | unix.ICANON | unix.ISIG)
+	// IEXTERN - Disable Ctrl-V
+
+	state.Lflag &^= (unix.ECHO | unix.ICANON | unix.ISIG | unix.IEXTEN)
 
 	// IXON (enable start/stop output control)
 	// Disable control characters that Ctrl-S and Ctrl-Q produce
@@ -82,6 +85,12 @@ func main() {
 				fmt.Println("END OF FILE")
 			}
 			log.Fatalln(err)
+		}
+
+		if unicode.IsControl(rune(charValue)) == true {
+			fmt.Println(charValue)
+		} else {
+			fmt.Println(string(charValue))
 		}
 		// press q to quit.
 		if charValue == 'q' {
