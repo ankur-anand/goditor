@@ -46,7 +46,15 @@ func enableRawMode() (*unix.Termios, error) {
 	// IXON (enable start/stop output control)
 	// Disable control characters that Ctrl-S and Ctrl-Q produce
 
-	state.Iflag &^= unix.IXON
+	// ICRNL - Input is gathered into lines, terminated by one of the line-delimiter characters:
+	// NL, EOL, EOL2 (if the IEXTEN flag is set), EOF (at anything other than the initial
+	// position in the line), or CR (if the ICRNL flag is enabled).
+	// Default setting ^M
+	//  with the ICRNL (map CR to NL on input) flag set
+	// (the default), this character is first converted to a newline (ASCII 10 decimal, ^J)
+	// before being passed to the reading proces
+
+	state.Iflag &^= (unix.IXON | unix.ICRNL)
 
 	//TCSANOW is TCSETS
 	err = unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, &state)
