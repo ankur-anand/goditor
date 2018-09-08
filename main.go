@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	STDIN_FILENO = 0
+	STDIN_FILENO  = 0
+	STDOUT_FILENO = 1
 )
 
 // enableRawMode is used to put the terminal into raw mode.
@@ -131,7 +132,22 @@ func writeToTerminal(value string) error {
 // goditorDrawRows() draws a tilde in each rowof the buffer.
 // and each row is not part of the file.
 func goditorDrawRows() {
-	for i := 0; i < 24; i++ {
+	// get the size of the terminal
+	// to know how many rows to draw
+
+	// a process can use the ioctl() TIOCGWINSZ operation to
+	// find out the current size of the terminal window
+	winsizeStruct, err := unix.IoctlGetWinsize(STDOUT_FILENO, unix.TIOCGWINSZ)
+	editorConfig := *winsizeStruct
+	// Number of rows
+	erow := editorConfig.Row
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	var i uint16
+	for i = 0; i < erow; i++ {
 		writeToTerminal("~\r\n")
 	}
 }
