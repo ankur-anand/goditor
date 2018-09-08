@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -147,6 +148,11 @@ func goditorDrawRows() {
 	}
 
 	var i uint16
+	// buffer is to avoid make a whole bunch of small
+	// writeToTerminal every time of the loop.
+	var buffer bytes.Buffer
+	// ToDo: golang 1.10 has  strings.Builder type,
+	// which achieves this even more efficiently
 
 	for i = 0; i < erow; i++ {
 
@@ -154,12 +160,14 @@ func goditorDrawRows() {
 		// for a new blank line
 		// so we should not printing the \r\n to last line
 		if i < erow-1 {
-			writeToTerminal("~\r\n")
+			buffer.WriteString("~\r\n")
 		} else {
-			writeToTerminal("~")
+			buffer.WriteString("~")
 		}
 
 	}
+
+	writeToTerminal(buffer.String())
 }
 
 // Clear the screen
