@@ -121,6 +121,15 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 	return 0, nil
 }
 
+// goditorDrawRows() draws a tilde in each rowof the buffer.
+// and each row is not part of the file.
+func goditorDrawRows() {
+	for i := 0; i < 24; i++ {
+		STDOUTFILE := os.Stdout
+		fmt.Fprintf(STDOUTFILE, "~\r\n")
+	}
+}
+
 // Clear the screen
 func goditorRefreshScreen() error {
 	// ED – Erase In Display
@@ -135,6 +144,13 @@ func goditorRefreshScreen() error {
 	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
 	// position the cursor at the first row and first column,
 	// not at the bottom.
+	_, err = fmt.Fprintf(STDOUTFILE, "\x1b[H")
+	if err != nil {
+		return err
+	}
+	goditorDrawRows()
+
+	// eposition the cursor back up at the top-left corner.
 	_, err = fmt.Fprintf(STDOUTFILE, "\x1b[H")
 	if err != nil {
 		return err
