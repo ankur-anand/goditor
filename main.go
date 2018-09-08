@@ -121,6 +121,18 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 	return 0, nil
 }
 
+// Clear the screen
+func goditorRefreshScreen() error {
+	// ED – Erase In Display
+	// https://vt100.net/docs/vt100-ug/chapter3.html#ED
+	_, err := fmt.Fprintf(os.Stdout, "\x1b[2J")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func main() {
 	cookedState, err := enableRawMode()
 	if err != nil {
@@ -128,10 +140,12 @@ func main() {
 	}
 
 	reader := bufio.NewReader(os.Stdin)
+	goditorRefreshScreen()
 	// Each Iteration, reader reads a byte of data from the
 	// source and assign it to the charValue, until there are
 	// no more bytes to read.
 	for {
+
 		read, err := goditorActionKeypress(reader)
 		if err != nil {
 			disableRawMode(cookedState)
