@@ -125,11 +125,20 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 func goditorRefreshScreen() error {
 	// ED – Erase In Display
 	// https://vt100.net/docs/vt100-ug/chapter3.html#ED
-	_, err := fmt.Fprintf(os.Stdout, "\x1b[2J")
+	STDOUTFILE := os.Stdout
+	_, err := fmt.Fprintf(STDOUTFILE, "\x1b[2J")
 	if err != nil {
 		return err
 	}
 
+	// CUP – Cursor Position
+	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
+	// position the cursor at the first row and first column,
+	// not at the bottom.
+	_, err = fmt.Fprintf(STDOUTFILE, "\x1b[H")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
