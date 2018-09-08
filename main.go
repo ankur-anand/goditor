@@ -121,12 +121,18 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 	return 0, nil
 }
 
+// writeToTerminal writes n bytes to the os.Stdout file
+func writeToTerminal(value string) error {
+	STDOUTFILE := os.Stdout
+	_, err := fmt.Fprintf(STDOUTFILE, value)
+	return err
+}
+
 // goditorDrawRows() draws a tilde in each rowof the buffer.
 // and each row is not part of the file.
 func goditorDrawRows() {
 	for i := 0; i < 24; i++ {
-		STDOUTFILE := os.Stdout
-		fmt.Fprintf(STDOUTFILE, "~\r\n")
+		writeToTerminal("~\r\n")
 	}
 }
 
@@ -134,8 +140,7 @@ func goditorDrawRows() {
 func goditorRefreshScreen() error {
 	// ED – Erase In Display
 	// https://vt100.net/docs/vt100-ug/chapter3.html#ED
-	STDOUTFILE := os.Stdout
-	_, err := fmt.Fprintf(STDOUTFILE, "\x1b[2J")
+	err := writeToTerminal("\x1b[2J")
 	if err != nil {
 		return err
 	}
@@ -144,14 +149,14 @@ func goditorRefreshScreen() error {
 	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
 	// position the cursor at the first row and first column,
 	// not at the bottom.
-	_, err = fmt.Fprintf(STDOUTFILE, "\x1b[H")
+	err = writeToTerminal("\x1b[H")
 	if err != nil {
 		return err
 	}
 	goditorDrawRows()
 
 	// eposition the cursor back up at the top-left corner.
-	_, err = fmt.Fprintf(STDOUTFILE, "\x1b[H")
+	err = writeToTerminal("\x1b[H")
 	if err != nil {
 		return err
 	}
@@ -161,9 +166,8 @@ func goditorRefreshScreen() error {
 // clearScreenOnExit clear the screen and
 // reposition the cursor when program exits
 func clearScreenOnExit() {
-	STDOUTFILE := os.Stdout
-	fmt.Fprintf(STDOUTFILE, "\x1b[2J")
-	fmt.Fprintf(STDOUTFILE, "\x1b[H")
+	writeToTerminal("\x1b[2J")
+	writeToTerminal("\x1b[H")
 }
 
 func main() {
