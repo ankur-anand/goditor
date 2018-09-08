@@ -172,6 +172,12 @@ func goditorDrawRows() {
 
 // Clear the screen
 func goditorRefreshScreen() error {
+	// terminal is drawning, cursor might be displayed.
+	// hide the cursor for the flicker moments
+	// https://vt100.net/docs/vt510-rm/DECTCEM.html
+	// set Mode
+	writeToTerminal("\x1b[?25l")
+
 	// ED – Erase In Display
 	// https://vt100.net/docs/vt100-ug/chapter3.html#ED
 	err := writeToTerminal("\x1b[2J")
@@ -189,8 +195,10 @@ func goditorRefreshScreen() error {
 	}
 	goditorDrawRows()
 
-	// eposition the cursor back up at the top-left corner.
+	// reposition the cursor back up at the top-left corner.
 	err = writeToTerminal("\x1b[H")
+	// cursor reset mode
+	writeToTerminal("\x1b[?25h")
 	if err != nil {
 		return err
 	}
