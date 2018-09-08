@@ -147,8 +147,18 @@ func goditorDrawRows() {
 	}
 
 	var i uint16
+
 	for i = 0; i < erow; i++ {
-		writeToTerminal("~\r\n")
+
+		// printing \r\n will cause the terminal to scroll
+		// for a new blank line
+		// so we should not printing the \r\n to last line
+		if i < erow-1 {
+			writeToTerminal("~\r\n")
+		} else {
+			writeToTerminal("~")
+		}
+
 	}
 }
 
