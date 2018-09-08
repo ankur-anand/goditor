@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	STDIN_FILENO  = 0
-	STDOUT_FILENO = 1
+	STDIN_FILENO    = 0
+	STDOUT_FILENO   = 1
+	GODITOR_VERSION = 0.1
 )
 
 // enableRawMode is used to put the terminal into raw mode.
@@ -159,10 +160,12 @@ func goditorDrawRows() string {
 		// printing \r\n will cause the terminal to scroll
 		// for a new blank line
 		// so we should not printing the \r\n to last line
+		buffer.WriteString("~")
+		// Erase In Line - the part of the line to the right of the cursor
+		buffer.WriteString("\x1b[K")
+
 		if i < erow-1 {
-			buffer.WriteString("~\r\n")
-		} else {
-			buffer.WriteString("~")
+			buffer.WriteString("\r\n")
 		}
 
 	}
@@ -181,10 +184,6 @@ func goditorRefreshScreen() error {
 	// https://vt100.net/docs/vt510-rm/DECTCEM.html
 	// set Mode
 	buffer.WriteString("\x1b[?25l")
-
-	// ED – Erase In Display
-	// https://vt100.net/docs/vt100-ug/chapter3.html#ED
-	buffer.WriteString("\x1b[2J")
 
 	// CUP – Cursor Position
 	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
