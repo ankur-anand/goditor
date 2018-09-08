@@ -90,39 +90,56 @@ func disableRawMode(cookedState *unix.Termios) error {
 	return nil
 }
 
+// to wait for one keypress, and return it
+func goditorReadKey(reader io.ByteReader) (byte, error) {
+	char, err := reader.ReadByte()
+	if err != nil {
+		return char, err
+	}
+	return char, nil
+}
+
+// goditorActionKeypress waits for a keypress, and then handles it
+func goditorActionKeypress(reader io.ByteReader) (int, error) {
+	char, err := goditorReadKey(reader)
+	if err != nil {
+		return 0, err
+	}
+
+	if unicode.IsControl(rune(char)) == true {
+		fmt.Printf("%b\r\n", char)
+	} else {
+		fmt.Printf("%s\r\n", string(char))
+	}
+
+	// mapping Ctrl + Q(17) to quit is
+	switch char {
+	case 17:
+		return 1, nil
+	}
+
+	return 0, nil
+}
+
 func main() {
 	cookedState, err := enableRawMode()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	var charValue byte
+
 	reader := bufio.NewReader(os.Stdin)
 	// Each Iteration, reader reads a byte of data from the
 	// source and assign it to the charValue, until there are
 	// no more bytes to read.
 	for {
-		var err error
-		// read one byte
-		charValue = 'a'
-		charValue, err = reader.ReadByte()
+		read, err := goditorActionKeypress(reader)
 		if err != nil {
-			if err == io.EOF {
-				disableRawMode(cookedState)
-				fmt.Printf("END OF FILE")
-				os.Exit(0)
-			}
 			disableRawMode(cookedState)
 			log.Fatalln(err)
 		}
 
-		if unicode.IsControl(rune(charValue)) == true {
-			fmt.Printf("%b\r\n", charValue)
-		} else {
-			fmt.Printf("%s\r\n", string(charValue))
-		}
-		// press q to quit.
-		if charValue == 'q' {
-			// disable the RAW MODE
+		// if read is 1 that means we need to end the loop.
+		if read == 1 {
 			err := disableRawMode(cookedState)
 			if err != nil {
 				log.Fatalln(err)
