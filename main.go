@@ -132,7 +132,7 @@ func writeToTerminal(value string) error {
 
 // goditorDrawRows() draws a tilde in each rowof the buffer.
 // and each row is not part of the file.
-func goditorDrawRows() {
+func goditorDrawRows() string {
 	// get the size of the terminal
 	// to know how many rows to draw
 
@@ -167,38 +167,40 @@ func goditorDrawRows() {
 
 	}
 
-	writeToTerminal(buffer.String())
+	return buffer.String()
 }
 
 // Clear the screen
 func goditorRefreshScreen() error {
+
+	// write only once
+	var buffer bytes.Buffer
+
 	// terminal is drawning, cursor might be displayed.
 	// hide the cursor for the flicker moments
 	// https://vt100.net/docs/vt510-rm/DECTCEM.html
 	// set Mode
-	writeToTerminal("\x1b[?25l")
+	buffer.WriteString("\x1b[?25l")
 
 	// ED – Erase In Display
 	// https://vt100.net/docs/vt100-ug/chapter3.html#ED
-	err := writeToTerminal("\x1b[2J")
-	if err != nil {
-		return err
-	}
+	buffer.WriteString("\x1b[2J")
 
 	// CUP – Cursor Position
 	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
 	// position the cursor at the first row and first column,
 	// not at the bottom.
-	err = writeToTerminal("\x1b[H")
-	if err != nil {
-		return err
-	}
-	goditorDrawRows()
+	buffer.WriteString("\x1b[H")
 
+	editor := goditorDrawRows()
+	buffer.WriteString(editor)
 	// reposition the cursor back up at the top-left corner.
-	err = writeToTerminal("\x1b[H")
+	buffer.WriteString("\x1b[H")
 	// cursor reset mode
-	writeToTerminal("\x1b[?25h")
+	buffer.WriteString("\x1b[?25h")
+
+	// Once write to Screen
+	err := writeToTerminal(buffer.String())
 	if err != nil {
 		return err
 	}
@@ -208,8 +210,10 @@ func goditorRefreshScreen() error {
 // clearScreenOnExit clear the screen and
 // reposition the cursor when program exits
 func clearScreenOnExit() {
-	writeToTerminal("\x1b[2J")
-	writeToTerminal("\x1b[H")
+	var buffer bytes.Buffer
+	buffer.WriteString("\x1b[2J")
+	buffer.WriteString("\x1b[H")
+	writeToTerminal(buffer.String())
 }
 
 func main() {
