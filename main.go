@@ -142,9 +142,18 @@ func goditorRefreshScreen() error {
 	return nil
 }
 
+// clearScreenOnExit clear the screen and
+// reposition the cursor when program exits
+func clearScreenOnExit() {
+	STDOUTFILE := os.Stdout
+	fmt.Fprintf(STDOUTFILE, "\x1b[2J")
+	fmt.Fprintf(STDOUTFILE, "\x1b[H")
+}
+
 func main() {
 	cookedState, err := enableRawMode()
 	if err != nil {
+		clearScreenOnExit()
 		log.Fatalln(err)
 	}
 
@@ -158,11 +167,13 @@ func main() {
 		read, err := goditorActionKeypress(reader)
 		if err != nil {
 			disableRawMode(cookedState)
+			clearScreenOnExit()
 			log.Fatalln(err)
 		}
 
 		// if read is 1 that means we need to end the loop.
 		if read == 1 {
+			clearScreenOnExit()
 			err := disableRawMode(cookedState)
 			if err != nil {
 				log.Fatalln(err)
