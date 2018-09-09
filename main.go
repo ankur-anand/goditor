@@ -18,6 +18,12 @@ const (
 	GODITOR_VERSION = 0.1
 )
 
+// goditorCursorPos is to keep track of the cursor’s x and y position
+type goditorCursorPos struct {
+	coodX uint16
+	coodY uint16
+}
+
 // enableRawMode is used to put the terminal into raw mode.
 // There are number of attributes of the terminal, but in its defaultt state
 // called "cooked mode" input is line buffered, characters are automatically
@@ -194,7 +200,7 @@ func goditorDrawRows() string {
 }
 
 // Clear the screen
-func goditorRefreshScreen() error {
+func goditorRefreshScreen(cpos *goditorCursorPos) error {
 
 	// write only once
 	var buffer bytes.Buffer
@@ -209,7 +215,9 @@ func goditorRefreshScreen() error {
 	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
 	// position the cursor at the first row and first column,
 	// not at the bottom.
-	buffer.WriteString("\x1b[H")
+	// get the position from goditorCursorPos
+	cursorState := *cpos
+	buffer.WriteString(fmt.Sprintf("\x1b[%d;%dH", cursorState.coodX+1, cursorState.coodY+1))
 
 	editor := goditorDrawRows()
 	buffer.WriteString(editor)
@@ -236,6 +244,9 @@ func clearScreenOnExit() {
 }
 
 func main() {
+
+	// Initialize the initial Cursor position.
+	cursorState := goditorCursorPos{coodX: 0, coodY: 0}
 	cookedState, err := enableRawMode()
 	if err != nil {
 		clearScreenOnExit()
@@ -243,7 +254,7 @@ func main() {
 	}
 
 	reader := bufio.NewReader(os.Stdin)
-	goditorRefreshScreen()
+	goditorRefreshScreen(&cursorState)
 	// Each Iteration, reader reads a byte of data from the
 	// source and assign it to the charValue, until there are
 	// no more bytes to read.
