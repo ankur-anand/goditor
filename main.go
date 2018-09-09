@@ -27,6 +27,14 @@ const (
 	escapeFollowed key = '['
 )
 
+// cursorMap maps some of the control character
+var cursorMap = map[byte]key{
+	'A': arrowUp,
+	'B': arrowDown,
+	'C': arrowRight,
+	'D': arrowLeft,
+}
+
 // goditorStateT is to keep track of the cursor’s x and y position
 // and Winsize
 type goditorStateT struct {
@@ -133,6 +141,9 @@ func goditorReadKey(reader io.ByteReader) (key, error) {
 		input1, _ := reader.ReadByte()
 		if key(input1) == escapeFollowed {
 			input2, _ := reader.ReadByte()
+			if val, ok := cursorMap[input2]; ok {
+				return val, nil
+			}
 			return key(input2), nil
 		}
 
