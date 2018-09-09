@@ -12,17 +12,19 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type key byte
+type key int
 
 const (
-	STDIN_FILENO        = 0
-	STDOUT_FILENO       = 1
-	GODITOR_VERSION     = 0.1
-	ARROW_UP        key = 'A'
-	ARROW_DOWN      key = 'B'
-	ARROW_RIGHT     key = 'C'
-	ARROW_LEFT      key = 'D'
-	QUIT            key = 17
+	stdInFileNo        = 0
+	stdoutFileNo       = 1
+	goditorVersion     = 0.1
+	arrowUp        key = 1000
+	arrowDown      key = 1001
+	arrowRight     key = 1002
+	arrowLeft      key = 1003
+	quit           key = 17
+	escapeSeq      key = '\x1b'
+	escapeFollowed key = '['
 )
 
 // goditorStateT is to keep track of the cursor’s x and y position
@@ -45,7 +47,7 @@ var goditorState goditorStateT
 // ^C doesn't cause SIGINT, and so on.
 func enableRawMode() (*unix.Termios, error) {
 
-	cooked, err := unix.IoctlGetTermios(STDIN_FILENO, unix.TCGETS)
+	cooked, err := unix.IoctlGetTermios(stdInFileNo, unix.TCGETS)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +78,7 @@ func enableRawMode() (*unix.Termios, error) {
 	// by byte instead of line-by-line.
 	// ln line-by-line mode you have to press Enter for program to read input.
 
-	// ISIG - To disable signal-generating characters (INTR, QUIT, SUSP)
+	// ISIG - To disable signal-generating characters (INTR, quit, SUSP)
 	// Eg disable Ctrl-C(SIGINT) and Ctrl-Z(SIGTSTP) signals
 
 	// IEXTERN - Disable Ctrl-V
@@ -94,7 +96,7 @@ func enableRawMode() (*unix.Termios, error) {
 	state.Cc[unix.VTIME] = 1
 
 	//TCSANOW is TCSETS
-	err = unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, &state)
+	err = unix.IoctlSetTermios(stdInFileNo, unix.TCSETS, &state)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +106,7 @@ func enableRawMode() (*unix.Termios, error) {
 
 // Disable raw mode at exit
 func disableRawMode(cookedState *unix.Termios) error {
-	err := unix.IoctlSetTermios(STDIN_FILENO, unix.TCSETS, cookedState)
+	err := unix.IoctlSetTermios(stdInFileNo, unix.TCSETS, cookedState)
 	if err != nil {
 		return err
 	}
@@ -124,6 +126,18 @@ func goditorReadKey(reader io.ByteReader) (key, error) {
 	if err != nil {
 		return key(char), err
 	}
+	// check if the char type that we have got is escapeSeq
+	switch key(char) {
+	case escapeSeq:
+		// wait for two other input.
+		input1, _ := reader.ReadByte()
+		if key(input1) == escapeFollowed {
+			input2, _ := reader.ReadByte()
+			return key(input2), nil
+		}
+
+	}
+
 	return key(char), nil
 }
 
@@ -142,28 +156,25 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 	//fmt.Println(goditorState, *goditorState.winsizeStruct)
 	// mapping Ctrl + Q(17) to quit is
 	switch char {
-	case QUIT:
+	case quit:
 		return 1, nil
-	case 27:
-		// check
-
-	case ARROW_UP:
+	case arrowUp:
 		// Prevent moving the cursor values to go into the negatives
 		if goditorState.curX != 1 {
 			goditorState.curX--
 		}
 		goditorMoveCursor()
-	case ARROW_DOWN:
+	case arrowDown:
 		if goditorState.curX != goditorState.winsizeStruct.Row-1 {
 			goditorState.curX++
 		}
 		goditorMoveCursor()
-	case ARROW_LEFT:
+	case arrowLeft:
 		if goditorState.curY != 1 {
 			goditorState.curY--
 		}
 		goditorMoveCursor()
-	case ARROW_RIGHT:
+	case arrowRight:
 		if goditorState.curY != goditorState.winsizeStruct.Col-1 {
 			goditorState.curY++
 		}
@@ -280,7 +291,7 @@ func clearScreenOnExit() {
 func main() {
 	// a process can use the ioctl() TIOCGWINSZ operation to
 	// find out the current size of the terminal window
-	winsizeS, err := unix.IoctlGetWinsize(STDOUT_FILENO, unix.TIOCGWINSZ)
+	winsizeS, err := unix.IoctlGetWinsize(stdoutFileNo, unix.TIOCGWINSZ)
 	if err != nil {
 		log.Fatal(err)
 	}
