@@ -160,7 +160,27 @@ func goditorDrawRows() string {
 		// printing \r\n will cause the terminal to scroll
 		// for a new blank line
 		// so we should not printing the \r\n to last line
-		buffer.WriteString("~")
+		// display the name of our editor and a version number too.
+		if i == erow/2 {
+			// and position it to the center of the screen
+			message := "Goditor: v0.1"
+			ecol := editorConfig.Col
+			leftPad := (int(ecol) - len(message)) / 2
+			if leftPad > 1 {
+				buffer.WriteString("~")
+				leftPad--
+			}
+			for {
+				leftPad--
+				if leftPad < 1 {
+					break
+				}
+				buffer.WriteString(" ")
+			}
+			buffer.WriteString(message)
+		} else {
+			buffer.WriteString("~")
+		}
 		// Erase In Line - the part of the line to the right of the cursor
 		buffer.WriteString("\x1b[K")
 
