@@ -18,13 +18,16 @@ const (
 	stdInFileNo        = 0
 	stdoutFileNo       = 1
 	goditorVersion     = 0.1
-	arrowUp        key = 1000
-	arrowDown      key = 1001
-	arrowRight     key = 1002
-	arrowLeft      key = 1003
 	quit           key = 17
 	escapeSeq      key = '\x1b'
 	escapeFollowed key = '['
+	arrowUp        key = iota + 1000
+	arrowDown
+	arrowRight
+	arrowLeft
+	pageUp
+	pageDown
+	deleteKey
 )
 
 // cursorMap maps some of the control character
@@ -141,8 +144,27 @@ func goditorReadKey(reader io.ByteReader) (key, error) {
 		input1, _ := reader.ReadByte()
 		if key(input1) == escapeFollowed {
 			input2, _ := reader.ReadByte()
+			// check if arrowLeft or arrowRight or
+			// arrowUp or arrowDown key has been pressed.
 			if val, ok := cursorMap[input2]; ok {
 				return val, nil
+			}
+
+			// checkIf the PageUp or PageDown key has been
+			// pressed
+			// PageUp <esc>[5~
+			// PageDown <esc>[6~
+			if input2 >= 0 && input2 <= 9 {
+				input3, _ := reader.ReadByte()
+				switch input3 {
+				case 3:
+					return deleteKey, nil
+				case 5:
+					return pageUp, nil
+				case 6:
+					return pageDown, nil
+
+				}
 			}
 			return key(input2), nil
 		}
