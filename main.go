@@ -18,11 +18,16 @@ const (
 	GODITOR_VERSION = 0.1
 )
 
-// goditorCursorPos is to keep track of the cursor’s x and y position
-type goditorCursorPos struct {
-	coodX uint16
-	coodY uint16
+// goditorStateT is to keep track of the cursor’s x and y position
+// and Winsize
+type goditorStateT struct {
+	curX          uint16
+	curY          uint16
+	winsizeStruct *unix.Winsize
 }
+
+// global state.
+var goditorState goditorStateT
 
 // enableRawMode is used to put the terminal into raw mode.
 // There are number of attributes of the terminal, but in its defaultt state
@@ -99,6 +104,13 @@ func disableRawMode(cookedState *unix.Termios) error {
 	return nil
 }
 
+// goditorMoveCursor move the cursor around
+func goditorMoveCursor() {
+	// CUP – Cursor Position
+	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
+	writeToTerminal(fmt.Sprintf("\x1b[%d;%dH", goditorState.curX, goditorState.curY))
+}
+
 // to wait for one keypress, and return it
 func goditorReadKey(reader io.ByteReader) (byte, error) {
 	char, err := reader.ReadByte()
@@ -125,6 +137,27 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 	switch char {
 	case 17:
 		return 1, nil
+	case 'w':
+		// Prevent moving the cursor values to go into the negatives
+		if goditorState.curX != 0 {
+			goditorState.curX--
+		}
+		goditorMoveCursor()
+	case 's':
+		if goditorState.curX != goditorState.winsizeStruct.Row-1 {
+			goditorState.curX++
+		}
+		goditorMoveCursor()
+	case 'a':
+		if goditorState.curY != 0 {
+			goditorState.curY--
+		}
+		goditorMoveCursor()
+	case 'd':
+		if goditorState.curY != goditorState.winsizeStruct.Col-1 {
+			goditorState.curY++
+		}
+		goditorMoveCursor()
 	}
 
 	return 0, nil
@@ -142,17 +175,9 @@ func writeToTerminal(value string) error {
 func goditorDrawRows() string {
 	// get the size of the terminal
 	// to know how many rows to draw
-
-	// a process can use the ioctl() TIOCGWINSZ operation to
-	// find out the current size of the terminal window
-	winsizeStruct, err := unix.IoctlGetWinsize(STDOUT_FILENO, unix.TIOCGWINSZ)
-	editorConfig := *winsizeStruct
+	editorConfig := *goditorState.winsizeStruct
 	// Number of rows
 	erow := editorConfig.Row
-
-	if err != nil {
-		log.Fatalln(err)
-	}
 
 	var i uint16
 	// buffer is to avoid make a whole bunch of small
@@ -200,7 +225,7 @@ func goditorDrawRows() string {
 }
 
 // Clear the screen
-func goditorRefreshScreen(cpos *goditorCursorPos) error {
+func goditorRefreshScreen() error {
 
 	// write only once
 	var buffer bytes.Buffer
@@ -215,9 +240,8 @@ func goditorRefreshScreen(cpos *goditorCursorPos) error {
 	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
 	// position the cursor at the first row and first column,
 	// not at the bottom.
-	// get the position from goditorCursorPos
-	cursorState := *cpos
-	buffer.WriteString(fmt.Sprintf("\x1b[%d;%dH", cursorState.coodX+1, cursorState.coodY+1))
+	// get the position from cursorState
+	buffer.WriteString(fmt.Sprintf("\x1b[%d;%dH", goditorState.curX+1, goditorState.curY+1))
 
 	editor := goditorDrawRows()
 	buffer.WriteString(editor)
@@ -244,9 +268,14 @@ func clearScreenOnExit() {
 }
 
 func main() {
-
+	// a process can use the ioctl() TIOCGWINSZ operation to
+	// find out the current size of the terminal window
+	winsizeS, err := unix.IoctlGetWinsize(STDOUT_FILENO, unix.TIOCGWINSZ)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// Initialize the initial Cursor position.
-	cursorState := goditorCursorPos{coodX: 0, coodY: 0}
+	goditorState = goditorStateT{curX: 0, curY: 0, winsizeStruct: winsizeS}
 	cookedState, err := enableRawMode()
 	if err != nil {
 		clearScreenOnExit()
@@ -254,7 +283,7 @@ func main() {
 	}
 
 	reader := bufio.NewReader(os.Stdin)
-	goditorRefreshScreen(&cursorState)
+	goditorRefreshScreen()
 	// Each Iteration, reader reads a byte of data from the
 	// source and assign it to the charValue, until there are
 	// no more bytes to read.
