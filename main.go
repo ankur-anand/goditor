@@ -12,10 +12,17 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+type key byte
+
 const (
-	STDIN_FILENO    = 0
-	STDOUT_FILENO   = 1
-	GODITOR_VERSION = 0.1
+	STDIN_FILENO        = 0
+	STDOUT_FILENO       = 1
+	GODITOR_VERSION     = 0.1
+	ARROW_UP        key = 'A'
+	ARROW_DOWN      key = 'B'
+	ARROW_RIGHT     key = 'C'
+	ARROW_LEFT      key = 'D'
+	QUIT            key = 17
 )
 
 // goditorStateT is to keep track of the cursor’s x and y position
@@ -112,12 +119,12 @@ func goditorMoveCursor() {
 }
 
 // to wait for one keypress, and return it
-func goditorReadKey(reader io.ByteReader) (byte, error) {
+func goditorReadKey(reader io.ByteReader) (key, error) {
 	char, err := reader.ReadByte()
 	if err != nil {
-		return char, err
+		return key(char), err
 	}
-	return char, nil
+	return key(char), nil
 }
 
 // goditorActionKeypress waits for a keypress, and then handles it
@@ -132,28 +139,31 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 	} else {
 		fmt.Printf("%s\r\n", string(char))
 	}
-
+	//fmt.Println(goditorState, *goditorState.winsizeStruct)
 	// mapping Ctrl + Q(17) to quit is
 	switch char {
-	case 17:
+	case QUIT:
 		return 1, nil
-	case 'w':
+	case 27:
+		// check
+
+	case ARROW_UP:
 		// Prevent moving the cursor values to go into the negatives
-		if goditorState.curX != 0 {
+		if goditorState.curX != 1 {
 			goditorState.curX--
 		}
 		goditorMoveCursor()
-	case 's':
+	case ARROW_DOWN:
 		if goditorState.curX != goditorState.winsizeStruct.Row-1 {
 			goditorState.curX++
 		}
 		goditorMoveCursor()
-	case 'a':
-		if goditorState.curY != 0 {
+	case ARROW_LEFT:
+		if goditorState.curY != 1 {
 			goditorState.curY--
 		}
 		goditorMoveCursor()
-	case 'd':
+	case ARROW_RIGHT:
 		if goditorState.curY != goditorState.winsizeStruct.Col-1 {
 			goditorState.curY++
 		}
@@ -241,7 +251,7 @@ func goditorRefreshScreen() error {
 	// position the cursor at the first row and first column,
 	// not at the bottom.
 	// get the position from cursorState
-	buffer.WriteString(fmt.Sprintf("\x1b[%d;%dH", goditorState.curX+1, goditorState.curY+1))
+	buffer.WriteString(fmt.Sprintf("\x1b[%d;%dH", goditorState.curX, goditorState.curY))
 
 	editor := goditorDrawRows()
 	buffer.WriteString(editor)
@@ -275,7 +285,7 @@ func main() {
 		log.Fatal(err)
 	}
 	// Initialize the initial Cursor position.
-	goditorState = goditorStateT{curX: 0, curY: 0, winsizeStruct: winsizeS}
+	goditorState = goditorStateT{curX: 1, curY: 1, winsizeStruct: winsizeS}
 	cookedState, err := enableRawMode()
 	if err != nil {
 		clearScreenOnExit()
