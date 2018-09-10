@@ -38,12 +38,19 @@ var cursorMap = map[byte]key{
 	'D': arrowLeft,
 }
 
+// storeGoditorRow for storing a row of text in our editor
+type storeGoditorRow struct {
+	text bytes.Buffer
+}
+
 // goditorStateT is to keep track of the cursor’s x and y position
 // and Winsize
 type goditorStateT struct {
 	curX          uint16
 	curY          uint16
 	winsizeStruct *unix.Winsize
+	row           storeGoditorRow
+	numrows       int
 }
 
 // global state.
@@ -246,25 +253,30 @@ func goditorDrawRows() string {
 		// for a new blank line
 		// so we should not printing the \r\n to last line
 		// display the name of our editor and a version number too.
-		if i == erow/2 {
-			// and position it to the center of the screen
-			message := "Goditor: v0.1"
-			ecol := editorConfig.Col
-			leftPad := (int(ecol) - len(message)) / 2
-			if leftPad > 1 {
-				buffer.WriteString("~")
-				leftPad--
-			}
-			for {
-				leftPad--
-				if leftPad < 1 {
-					break
+		if int(i) >= goditorState.numrows {
+			if i == erow/2 {
+				// and position it to the center of the screen
+				message := "Goditor: v0.1"
+				ecol := editorConfig.Col
+				leftPad := (int(ecol) - len(message)) / 2
+				if leftPad > 1 {
+					buffer.WriteString("~")
+					leftPad--
 				}
-				buffer.WriteString(" ")
+				for {
+					leftPad--
+					if leftPad < 1 {
+						break
+					}
+					buffer.WriteString(" ")
+				}
+				buffer.WriteString(message)
+			} else {
+				buffer.WriteString("~")
 			}
-			buffer.WriteString(message)
 		} else {
-			buffer.WriteString("~")
+			text := goditorState.row.text.String()
+			buffer.WriteString(text)
 		}
 		// Erase In Line - the part of the line to the right of the cursor
 		buffer.WriteString("\x1b[K")
@@ -321,6 +333,11 @@ func clearScreenOnExit() {
 	writeToTerminal(buffer.String())
 }
 
+func goditorOpen() {
+	goditorState.row.text.WriteString("Hello World!")
+	goditorState.numrows = 1
+}
+
 func main() {
 	// a process can use the ioctl() TIOCGWINSZ operation to
 	// find out the current size of the terminal window
@@ -329,7 +346,8 @@ func main() {
 		log.Fatal(err)
 	}
 	// Initialize the initial Cursor position.
-	goditorState = goditorStateT{curX: 1, curY: 1, winsizeStruct: winsizeS}
+	goditorState = goditorStateT{curX: 1, curY: 1, winsizeStruct: winsizeS, numrows: 1}
+	goditorOpen()
 	cookedState, err := enableRawMode()
 	if err != nil {
 		clearScreenOnExit()
