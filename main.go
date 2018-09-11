@@ -333,8 +333,16 @@ func clearScreenOnExit() {
 	writeToTerminal(buffer.String())
 }
 
-func goditorOpen() {
-	goditorState.row.text.WriteString("Hello World!")
+// goditorOpen reads the contents from the file, and display
+// the file content.
+func goditorOpen(file *os.File) {
+	br := bufio.NewReader(file)
+	// ReadLine does not include the line end ("\r\n" or "\n")
+	line, _, err := br.ReadLine()
+	if err != nil {
+		log.Fatal(err)
+	}
+	goditorState.row.text.WriteString(string(line[:]))
 	goditorState.numrows = 1
 }
 
@@ -346,8 +354,18 @@ func main() {
 		log.Fatal(err)
 	}
 	// Initialize the initial Cursor position.
-	goditorState = goditorStateT{curX: 1, curY: 1, winsizeStruct: winsizeS, numrows: 1}
-	goditorOpen()
+	goditorState = goditorStateT{curX: 1, curY: 1, winsizeStruct: winsizeS, numrows: 0}
+	// if args is the fileName open the file content
+	args := os.Args
+	if len(args) == 2 {
+		// open the file, for reading.
+		file, err := os.Open("test.txt")
+		defer file.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+		goditorOpen(file)
+	}
 	cookedState, err := enableRawMode()
 	if err != nil {
 		clearScreenOnExit()
