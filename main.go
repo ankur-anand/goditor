@@ -49,7 +49,7 @@ type goditorStateT struct {
 	curX          uint16
 	curY          uint16
 	winsizeStruct *unix.Winsize
-	row           storeGoditorRow
+	row           []storeGoditorRow // slice of storeGoditorRow to store all row.
 	numrows       int
 }
 
@@ -275,8 +275,10 @@ func goditorDrawRows() string {
 				buffer.WriteString("~")
 			}
 		} else {
-			text := goditorState.row.text.String()
+
+			text := goditorState.row[i].text.String()
 			buffer.WriteString(text)
+
 		}
 		// Erase In Line - the part of the line to the right of the cursor
 		buffer.WriteString("\x1b[K")
@@ -336,14 +338,28 @@ func clearScreenOnExit() {
 // goditorOpen reads the contents from the file, and display
 // the file content.
 func goditorOpen(file *os.File) {
+
+	// create a tmp slice
+	rowvalue := make([]storeGoditorRow, 10)
 	br := bufio.NewReader(file)
 	// ReadLine does not include the line end ("\r\n" or "\n")
-	line, _, err := br.ReadLine()
-	if err != nil {
-		log.Fatal(err)
+	i := 0
+	for {
+		line, _, err := br.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatal(err)
+		}
+		rowvalue[i].text.WriteString(string(line))
+		i++
+		goditorState.numrows++
 	}
-	goditorState.row.text.WriteString(string(line[:]))
-	goditorState.numrows = 1
+
+	//goditorState.row[0].text.WriteString(string(line))
+	// assign the goditor with the row value
+	goditorState.row = rowvalue
 }
 
 func main() {
