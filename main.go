@@ -45,12 +45,12 @@ type storeGoditorRow struct {
 // goditorStateT is to keep track of the cursor’s x and y position
 // and Winsize
 type goditorStateT struct {
-	curX          uint16
-	curY          uint16
+	curRow        uint16
+	curCol        uint16
 	winsizeStruct *unix.Winsize
 	row           []storeGoditorRow // slice of storeGoditorRow to store all row.
-	numrows       int
-	rowat         int // row of the file the user is currently scrolled to.
+	numrows       uint16
+	rowat         uint16 // row of the file the user is currently scrolled to.
 }
 
 // global state.
@@ -135,7 +135,7 @@ func disableRawMode(cookedState *unix.Termios) error {
 func goditorMoveCursor() {
 	// CUP – Cursor Position
 	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
-	writeToTerminal(fmt.Sprintf("\x1b[%d;%dH", goditorState.curX, goditorState.curY))
+	writeToTerminal(fmt.Sprintf("\x1b[%d;%dH", goditorState.curRow, goditorState.curCol))
 }
 
 // to wait for one keypress, and return it
@@ -188,35 +188,29 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 		return 0, err
 	}
 
-	// if unicode.IsControl(rune(char)) == true {
-	// 	fmt.Printf("%b\r\n", char)
-	// } else {
-	// 	fmt.Printf("%s\r\n", string(char))
-	// }
-	//fmt.Println(goditorState, *goditorState.winsizeStruct)
 	// mapping Ctrl + Q(17) to quit is
 	switch char {
 	case quit:
 		return 1, nil
 	case arrowUp:
 		// Prevent moving the cursor values to go into the negatives
-		if goditorState.curX != 1 {
-			goditorState.curX--
+		if goditorState.curRow != 1 {
+			goditorState.curRow--
 		}
 		goditorMoveCursor()
 	case arrowDown:
-		if goditorState.curX != goditorState.winsizeStruct.Row-1 {
-			goditorState.curX++
+		if goditorState.curRow != goditorState.winsizeStruct.Row-1 {
+			goditorState.curRow++
 		}
 		goditorMoveCursor()
 	case arrowLeft:
-		if goditorState.curY != 1 {
-			goditorState.curY--
+		if goditorState.curCol != 1 {
+			goditorState.curCol--
 		}
 		goditorMoveCursor()
 	case arrowRight:
-		if goditorState.curY != goditorState.winsizeStruct.Col-1 {
-			goditorState.curY++
+		if goditorState.curCol != goditorState.winsizeStruct.Col-1 {
+			goditorState.curCol++
 		}
 		goditorMoveCursor()
 	}
@@ -249,7 +243,7 @@ func goditorDrawRows() string {
 	// which achieves this even more efficiently
 
 	for yaxis = 0; yaxis < erow; yaxis++ {
-		editorrow := int(yaxis) + crowat
+		editorrow := yaxis + crowat
 		// printing \r\n will cause the terminal to scroll
 		// for a new blank line
 		// so we should not printing the \r\n to last line
@@ -312,7 +306,7 @@ func goditorRefreshScreen() error {
 	// position the cursor at the first row and first column,
 	// not at the bottom.
 	// get the position from cursorState
-	buffer.WriteString(fmt.Sprintf("\x1b[%d;%dH", goditorState.curX, goditorState.curY))
+	buffer.WriteString(fmt.Sprintf("\x1b[%d;%dH", goditorState.curRow, goditorState.curCol))
 
 	editor := goditorDrawRows()
 	buffer.WriteString(editor)
@@ -376,7 +370,7 @@ func main() {
 		log.Fatal(err)
 	}
 	// Initialize the initial Cursor position.
-	goditorState = goditorStateT{curX: 1, curY: 1, winsizeStruct: winsizeS, numrows: 0, rowat: 0}
+	goditorState = goditorStateT{curRow: 1, curCol: 1, winsizeStruct: winsizeS, numrows: 0, rowat: 0}
 	// if args is the fileName open the file content
 	args := os.Args
 	if len(args) == 2 {
