@@ -51,6 +51,7 @@ type goditorStateT struct {
 	winsizeStruct *unix.Winsize
 	row           []storeGoditorRow // slice of storeGoditorRow to store all row.
 	numrows       int
+	rowat         int // row of the file the user is currently scrolled to.
 }
 
 // global state.
@@ -239,6 +240,7 @@ func goditorDrawRows() string {
 	editorConfig := *goditorState.winsizeStruct
 	// Number of rows
 	erow := editorConfig.Row
+	crowat := goditorState.rowat
 
 	var i uint16
 	// buffer is to avoid make a whole bunch of small
@@ -248,13 +250,15 @@ func goditorDrawRows() string {
 	// which achieves this even more efficiently
 
 	for i = 0; i < erow; i++ {
-
+		filerow := int(i) + crowat
 		// printing \r\n will cause the terminal to scroll
 		// for a new blank line
 		// so we should not printing the \r\n to last line
 		// display the name of our editor and a version number too.
-		if int(i) >= goditorState.numrows {
-			if i == erow/2 {
+		if filerow >= goditorState.numrows {
+			// if numrows is zero, then only display the Goditor version
+			// as in othercase we've opened a file
+			if goditorState.numrows == 0 && i == erow/2 {
 				// and position it to the center of the screen
 				message := "Goditor: v0.1"
 				ecol := editorConfig.Col
@@ -357,7 +361,6 @@ func goditorOpen(file *os.File) {
 		goditorState.numrows++
 	}
 
-	//goditorState.row[0].text.WriteString(string(line))
 	// assign the goditor with the row value
 	goditorState.row = rowvalue
 }
@@ -370,7 +373,7 @@ func main() {
 		log.Fatal(err)
 	}
 	// Initialize the initial Cursor position.
-	goditorState = goditorStateT{curX: 1, curY: 1, winsizeStruct: winsizeS, numrows: 0}
+	goditorState = goditorStateT{curX: 1, curY: 1, winsizeStruct: winsizeS, numrows: 0, rowat: 0}
 	// if args is the fileName open the file content
 	args := os.Args
 	if len(args) == 2 {
