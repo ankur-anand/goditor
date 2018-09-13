@@ -242,23 +242,23 @@ func goditorDrawRows() string {
 	erow := editorConfig.Row
 	crowat := goditorState.rowat
 
-	var i uint16
+	var yaxis uint16
 	// buffer is to avoid make a whole bunch of small
 	// writeToTerminal every time of the loop.
 	var buffer bytes.Buffer
 	// ToDo: golang 1.10 has  strings.Builder type,
 	// which achieves this even more efficiently
 
-	for i = 0; i < erow; i++ {
-		filerow := int(i) + crowat
+	for yaxis = 0; yaxis < erow; yaxis++ {
+		editorrow := int(yaxis) + crowat
 		// printing \r\n will cause the terminal to scroll
 		// for a new blank line
 		// so we should not printing the \r\n to last line
 		// display the name of our editor and a version number too.
-		if filerow >= goditorState.numrows {
+		if editorrow >= goditorState.numrows {
 			// if numrows is zero, then only display the Goditor version
 			// as in othercase we've opened a file
-			if goditorState.numrows == 0 && i == erow/2 {
+			if goditorState.numrows == 0 && yaxis == erow/2 {
 				// and position it to the center of the screen
 				message := "Goditor: v0.1"
 				ecol := editorConfig.Col
@@ -280,14 +280,14 @@ func goditorDrawRows() string {
 			}
 		} else {
 
-			text := goditorState.row[i].text.String()
+			text := goditorState.row[editorrow].text.String()
 			buffer.WriteString(text)
 
 		}
 		// Erase In Line - the part of the line to the right of the cursor
 		buffer.WriteString("\x1b[K")
 
-		if i < erow-1 {
+		if yaxis < erow-1 {
 			buffer.WriteString("\r\n")
 		}
 
