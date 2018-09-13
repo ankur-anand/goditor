@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"unicode"
 
 	"golang.org/x/sys/unix"
 )
@@ -189,11 +188,11 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 		return 0, err
 	}
 
-	if unicode.IsControl(rune(char)) == true {
-		fmt.Printf("%b\r\n", char)
-	} else {
-		fmt.Printf("%s\r\n", string(char))
-	}
+	// if unicode.IsControl(rune(char)) == true {
+	// 	fmt.Printf("%b\r\n", char)
+	// } else {
+	// 	fmt.Printf("%s\r\n", string(char))
+	// }
 	//fmt.Println(goditorState, *goditorState.winsizeStruct)
 	// mapping Ctrl + Q(17) to quit is
 	switch char {
@@ -344,7 +343,7 @@ func clearScreenOnExit() {
 func goditorOpen(file *os.File) {
 
 	// create a tmp slice
-	rowvalue := make([]storeGoditorRow, 10)
+	rowvalue := make([]storeGoditorRow, 0)
 	br := bufio.NewReader(file)
 	// ReadLine does not include the line end ("\r\n" or "\n")
 	i := 0
@@ -356,7 +355,11 @@ func goditorOpen(file *os.File) {
 			}
 			log.Fatal(err)
 		}
-		rowvalue[i].text.WriteString(string(line))
+
+		newRow := storeGoditorRow{}
+		newRow.text.WriteString(string(line))
+		rowvalue = append(rowvalue, newRow)
+
 		i++
 		goditorState.numrows++
 	}
