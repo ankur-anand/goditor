@@ -376,10 +376,10 @@ func main() {
 	if len(args) == 2 {
 		// open the file, for reading.
 		file, err := os.Open("test.txt")
-		defer file.Close()
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer file.Close()
 		goditorOpen(file)
 	}
 	cookedState, err := enableRawMode()
