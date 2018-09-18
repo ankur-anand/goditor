@@ -213,9 +213,20 @@ func goditorActionKeypress(reader io.ByteReader) (int, error) {
 			goditorState.curCol++
 		}
 		goditorMoveCursor()
+	default:
+		goditorInsertChar(char)
 	}
 
 	return 0, nil
+}
+
+// goditorRowInsertChar inserts a single character into an row
+func goditorRowInsertChar(char key) {
+	writeToTerminal(string(char))
+}
+
+func goditorInsertChar(char key) {
+	goditorRowInsertChar(char)
 }
 
 // writeToTerminal writes n bytes to the os.Stdout file
