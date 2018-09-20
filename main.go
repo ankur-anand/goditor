@@ -226,9 +226,7 @@ func goditorRowInsertChar(char key) {
 }
 
 func goditorInsertChar(char key) {
-	if goditorState.curCol == goditorState.numrows {
-		goditorRowInsertChar(char)
-	}
+	goditorRowInsertChar(char)
 }
 
 // writeToTerminal writes n bytes to the os.Stdout file
