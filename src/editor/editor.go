@@ -45,12 +45,13 @@ func StartGoditor() {
 	// enable raw mode for the terminal
 	e.term.EnableRawMode()
 	for {
-		e.keyboardRead()
+		readValue := e.keyboardRead()
+		screen.ProcessKey(readValue)
 	}
 }
 
 // keyboardRead reads a byte of data from the keyboard
-func (e editor) keyboardRead() {
+func (e editor) keyboardRead() keyboard.Key {
 	keyedIn, err := keyboard.HandleKeyStroke()
 	if err != nil {
 		e.term.DisableRawMode()
@@ -64,5 +65,5 @@ func (e editor) keyboardRead() {
 		screen.ClearScreen()
 		os.Exit(0)
 	}
-
+	return keyedIn
 }
