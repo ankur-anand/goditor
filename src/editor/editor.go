@@ -32,5 +32,7 @@ func newState() state {
 // StartGoditor starts a new Editor
 func StartGoditor() {
 	s := newState()
+	term := terminal.CurrentTerm()
+	term.EnableRawMode()
 	fmt.Println(s)
 }
