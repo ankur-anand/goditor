@@ -51,7 +51,7 @@ func CurrentTerm() Term {
 // ^C doesn't cause SIGINT, and so on.
 func (t Term) EnableRawMode() {
 
-	state := t.cookedState
+	state := *t.cookedState
 
 	// IXON (enable start/stop output control)
 	// Disable control characters that Ctrl-S and Ctrl-Q produce
@@ -95,17 +95,16 @@ func (t Term) EnableRawMode() {
 	// times out, it will return 0
 	state.Cc[unix.VTIME] = 1
 
-	t.changeTermiosMode()
+	//TCSANOW is TCSETS
+	err := unix.IoctlSetTermios(stdInFileNo, unix.TCSETS, &state)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 }
 
 // DisableRawMode Disable raw mode at exit
 func (t *Term) DisableRawMode() {
-	t.changeTermiosMode()
-}
-
-func (t *Term) changeTermiosMode() {
-	//TCSANOW is TCSETS
 	err := unix.IoctlSetTermios(stdInFileNo, unix.TCSETS, t.cookedState)
 	if err != nil {
 		log.Fatalln(err)

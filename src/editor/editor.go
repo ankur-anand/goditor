@@ -1,8 +1,11 @@
 package editor
 
 import (
-	"fmt"
+	"log"
+	"os"
 
+	"github.com/ankur-anand/goditor/src/keyboard"
+	"github.com/ankur-anand/goditor/src/screen"
 	"github.com/ankur-anand/goditor/src/terminal"
 	"golang.org/x/sys/unix"
 )
@@ -29,10 +32,37 @@ func newState() state {
 	return s
 }
 
+type editor struct {
+	term terminal.Term
+}
+
 // StartGoditor starts a new Editor
 func StartGoditor() {
-	s := newState()
-	term := terminal.CurrentTerm()
-	term.EnableRawMode()
-	fmt.Println(s)
+	//s := newState()
+	e := editor{
+		term: terminal.CurrentTerm(),
+	}
+	// enable raw mode for the terminal
+	e.term.EnableRawMode()
+	for {
+		e.keyboardRead()
+	}
+}
+
+// keyboardRead reads a byte of data from the keyboard
+func (e editor) keyboardRead() {
+	keyedIn, err := keyboard.HandleKeyStroke()
+	if err != nil {
+		e.term.DisableRawMode()
+		screen.ClearScreen()
+		log.Fatalln(err)
+	}
+
+	// quit Editor case
+	if keyedIn == keyboard.Quit {
+		e.term.DisableRawMode()
+		screen.ClearScreen()
+		os.Exit(0)
+	}
+
 }
