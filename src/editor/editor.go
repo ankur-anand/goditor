@@ -16,20 +16,22 @@ const (
 )
 
 type editor struct {
-	term *terminal.Term
+	term   *terminal.Term
+	screen *screen.State
 }
 
 // StartGoditor starts a new Editor
 func StartGoditor() {
 	e := editor{
-		term: terminal.CurrentTerm(),
+		term:   terminal.CurrentTerm(),
+		screen: screen.NewState(),
 	}
-	scrn := screen.NewState()
+
 	// enable raw mode for the terminal
 	e.term.EnableRawMode()
 	for {
 		readValue := e.keyboardRead()
-		scrn.ProcessKey(readValue)
+		e.screen.ProcessKey(readValue)
 	}
 }
 
@@ -38,14 +40,14 @@ func (e editor) keyboardRead() keyboard.Key {
 	keyedIn, err := keyboard.HandleKeyStroke()
 	if err != nil {
 		e.term.DisableRawMode()
-		screen.ClearScreen()
+		e.screen.ClearScreen()
 		log.Fatalln(err)
 	}
 
 	// quit Editor case
 	if keyedIn == keyboard.Quit {
 		e.term.DisableRawMode()
-		screen.ClearScreen()
+		e.screen.ClearScreen()
 		os.Exit(0)
 	}
 	return keyedIn

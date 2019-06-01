@@ -37,7 +37,7 @@ func WriteToStdOut(value string) error {
 
 // ClearScreen clear the screen and
 // reposition the cursor when program exits
-func ClearScreen() {
+func (s *State) ClearScreen() {
 	var buffer bytes.Buffer
 	// \x1b (27) Escape Character.
 	// three bytes are [2J
