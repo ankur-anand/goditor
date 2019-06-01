@@ -13,7 +13,7 @@ const (
 
 // WinSize get the current window size of the terminal.
 func WinSize() *unix.Winsize {
-	// a process can use the ioctl() TIOCGWINSZ operation to
+	// a process on unix can use the ioctl() TIOCGWINSZ operation to
 	// find out the current size of the terminal window
 	winsizeS, err := unix.IoctlGetWinsize(stdoutFileNo, unix.TIOCGWINSZ)
 	if err != nil {
@@ -29,13 +29,14 @@ type Term struct {
 }
 
 // CurrentTerm returns a current terminal with it's state
-func CurrentTerm() Term {
+// default In cooked mode data is preprocessed before being given to a program
+func CurrentTerm() *Term {
 	cooked, err := unix.IoctlGetTermios(stdInFileNo, unix.TCGETS)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	t := Term{
+	t := &Term{
 		cookedState: cooked,
 	}
 
@@ -49,7 +50,7 @@ func CurrentTerm() Term {
 // In raw mode none of thos things happens; you get every keystroke
 // immediately without waiting for a new line, and it's not echoed.
 // ^C doesn't cause SIGINT, and so on.
-func (t Term) EnableRawMode() {
+func (t *Term) EnableRawMode() {
 
 	state := *t.cookedState
 

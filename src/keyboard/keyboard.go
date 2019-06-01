@@ -13,7 +13,7 @@ type Key int
 
 const (
 	// Quit Editor
-	Quit           Key = 17
+	Quit           Key = 17 // crtl + q
 	escapeSeq      Key = '\x1b'
 	escapeFollowed Key = '['
 	// ArrowUp Cursor

@@ -1,0 +1,342 @@
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"io"
+	"log"
+	"os"
+
+	"golang.org/x/sys/unix"
+)
+
+const (
+	stdInFileNo        = 0
+	stdoutFileNo       = 1
+	goditorVersion     = 0.1
+	quit           key = 17
+	escapeSeq      key = '\x1b'
+	escapeFollowed key = '['
+	arrowUp        key = iota + 1000
+	arrowDown
+	arrowRight
+	arrowLeft
+	pageUp
+	pageDown
+	deleteKey
+)
+
+// storeGoditorRow for storing a row of text in our editor
+type storeGoditorRow struct {
+	text bytes.Buffer
+}
+
+// goditorStateT is to keep track of the cursor’s x and y position
+// and Winsize
+type goditorStateT struct {
+	curRow        uint16
+	curCol        uint16
+	winsizeStruct *unix.Winsize
+	row           []storeGoditorRow // slice of storeGoditorRow to store all row.
+	numrows       uint16
+	rowat         uint16 // row of the file the user is currently scrolled to.
+}
+
+// global state.
+var goditorState goditorStateT
+
+// goditorMoveCursor move the cursor around
+func goditorMoveCursor() {
+	// CUP – Cursor Position
+	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
+	writeToTerminal(fmt.Sprintf("\x1b[%d;%dH", goditorState.curRow, goditorState.curCol))
+}
+
+// to wait for one keypress, and return it
+func goditorReadKey(reader io.ByteReader) (key, error) {
+	char, err := reader.ReadByte()
+	if err != nil {
+		return key(char), err
+	}
+	// check if the char type that we have got is escapeSeq
+	switch key(char) {
+	case escapeSeq:
+		// wait for two other input.
+		input1, _ := reader.ReadByte()
+		if key(input1) == escapeFollowed {
+			input2, _ := reader.ReadByte()
+			// check if arrowLeft or arrowRight or
+			// arrowUp or arrowDown key has been pressed.
+			if val, ok := cursorMap[input2]; ok {
+				return val, nil
+			}
+
+			// checkIf the PageUp or PageDown key has been
+			// pressed
+			// PageUp <esc>[5~
+			// PageDown <esc>[6~
+			if input2 >= 0 && input2 <= 9 {
+				input3, _ := reader.ReadByte()
+				switch input3 {
+				case 3:
+					return deleteKey, nil
+				case 5:
+					return pageUp, nil
+				case 6:
+					return pageDown, nil
+
+				}
+			}
+			return key(input2), nil
+		}
+
+	}
+
+	return key(char), nil
+}
+
+// goditorActionKeypress waits for a keypress, and then handles it
+func goditorActionKeypress(reader io.ByteReader) (int, error) {
+	char, err := goditorReadKey(reader)
+	if err != nil {
+		return 0, err
+	}
+
+	// mapping Ctrl + Q(17) to quit is
+	switch char {
+	case quit:
+		return 1, nil
+	case arrowUp:
+		// Prevent moving the cursor values to go into the negatives
+		if goditorState.curRow != 1 {
+			goditorState.curRow--
+		}
+		goditorMoveCursor()
+	case arrowDown:
+		if goditorState.curRow != goditorState.winsizeStruct.Row-1 {
+			goditorState.curRow++
+		}
+		goditorMoveCursor()
+	case arrowLeft:
+		if goditorState.curCol != 1 {
+			goditorState.curCol--
+		}
+		goditorMoveCursor()
+	case arrowRight:
+		if goditorState.curCol != goditorState.winsizeStruct.Col-1 {
+			goditorState.curCol++
+		}
+		goditorMoveCursor()
+	default:
+		goditorInsertChar(char)
+	}
+
+	return 0, nil
+}
+
+// goditorRowInsertChar inserts a single character into an row
+func goditorRowInsertChar(char key) {
+	writeToTerminal(string(char))
+}
+
+func goditorInsertChar(char key) {
+	goditorRowInsertChar(char)
+}
+
+// writeToTerminal writes n bytes to the os.Stdout file
+func writeToTerminal(value string) error {
+	STDOUTFILE := os.Stdout
+	_, err := fmt.Fprintf(STDOUTFILE, value)
+	return err
+}
+
+// goditorDrawRows() draws a tilde in each rowof the buffer.
+// and each row is not part of the file.
+func goditorDrawRows() string {
+	// get the size of the terminal
+	// to know how many rows to draw
+	editorConfig := *goditorState.winsizeStruct
+	// Number of rows
+	erow := editorConfig.Row
+	crowat := goditorState.rowat
+
+	var yaxis uint16
+	// buffer is to avoid make a whole bunch of small
+	// writeToTerminal every time of the loop.
+	var buffer bytes.Buffer
+	// ToDo: golang 1.10 has  strings.Builder type,
+	// which achieves this even more efficiently
+
+	for yaxis = 0; yaxis < erow; yaxis++ {
+		editorrow := yaxis + crowat
+		// printing \r\n will cause the terminal to scroll
+		// for a new blank line
+		// so we should not printing the \r\n to last line
+		// display the name of our editor and a version number too.
+		if editorrow >= goditorState.numrows {
+			// if numrows is zero, then only display the Goditor version
+			// as in othercase we've opened a file
+			if goditorState.numrows == 0 && yaxis == erow/2 {
+				// and position it to the center of the screen
+				message := "Goditor: v0.1"
+				ecol := editorConfig.Col
+				leftPad := (int(ecol) - len(message)) / 2
+				if leftPad > 1 {
+					buffer.WriteString("~")
+					leftPad--
+				}
+				for {
+					leftPad--
+					if leftPad < 1 {
+						break
+					}
+					buffer.WriteString(" ")
+				}
+				buffer.WriteString(message)
+			} else {
+				buffer.WriteString("~")
+			}
+		} else {
+
+			text := goditorState.row[editorrow].text.String()
+			buffer.WriteString(text)
+
+		}
+		// Erase In Line - the part of the line to the right of the cursor
+		buffer.WriteString("\x1b[K")
+
+		if yaxis < erow-1 {
+			buffer.WriteString("\r\n")
+		}
+
+	}
+
+	return buffer.String()
+}
+
+// Clear the screen
+func goditorRefreshScreen() error {
+
+	// write only once
+	var buffer bytes.Buffer
+
+	// terminal is drawning, cursor might be displayed.
+	// hide the cursor for the flicker moments
+	// https://vt100.net/docs/vt510-rm/DECTCEM.html
+	// set Mode
+	buffer.WriteString("\x1b[?25l")
+
+	// CUP – Cursor Position
+	// https://vt100.net/docs/vt100-ug/chapter3.html#CUP
+	// position the cursor at the first row and first column,
+	// not at the bottom.
+	// get the position from cursorState
+	buffer.WriteString(fmt.Sprintf("\x1b[%d;%dH", goditorState.curRow, goditorState.curCol))
+
+	editor := goditorDrawRows()
+	buffer.WriteString(editor)
+	// reposition the cursor back up at the top-left corner.
+	buffer.WriteString("\x1b[H")
+	// cursor reset mode
+	buffer.WriteString("\x1b[?25h")
+
+	// Once write to Screen
+	err := writeToTerminal(buffer.String())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// clearScreenOnExit clear the screen and
+// reposition the cursor when program exits
+func clearScreenOnExit() {
+	var buffer bytes.Buffer
+	buffer.WriteString("\x1b[2J")
+	buffer.WriteString("\x1b[H")
+	writeToTerminal(buffer.String())
+}
+
+// goditorOpen reads the contents from the file, and display
+// the file content.
+func goditorOpen(file *os.File) {
+
+	// create a tmp slice
+	rowvalue := make([]storeGoditorRow, 0)
+	br := bufio.NewReader(file)
+	// ReadLine does not include the line end ("\r\n" or "\n")
+	i := 0
+	for {
+		line, _, err := br.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatal(err)
+		}
+
+		newRow := storeGoditorRow{}
+		newRow.text.WriteString(string(line))
+		rowvalue = append(rowvalue, newRow)
+
+		i++
+		goditorState.numrows++
+	}
+
+	// assign the goditor with the row value
+	goditorState.row = rowvalue
+}
+
+func main() {
+	// a process can use the ioctl() TIOCGWINSZ operation to
+	// find out the current size of the terminal window
+	winsizeS, err := unix.IoctlGetWinsize(stdoutFileNo, unix.TIOCGWINSZ)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Initialize the initial Cursor position.
+	goditorState = goditorStateT{curRow: 1, curCol: 1, winsizeStruct: winsizeS, numrows: 0, rowat: 0}
+	// if args is the fileName open the file content
+	args := os.Args
+	if len(args) == 2 {
+		// open the file, for reading.
+		file, err := os.Open("test.txt")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+		goditorOpen(file)
+	}
+	cookedState, err := enableRawMode()
+	if err != nil {
+		clearScreenOnExit()
+		log.Fatalln(err)
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	goditorRefreshScreen()
+	// Each Iteration, reader reads a byte of data from the
+	// source and assign it to the charValue, until there are
+	// no more bytes to read.
+	for {
+
+		read, err := goditorActionKeypress(reader)
+		if err != nil {
+			disableRawMode(cookedState)
+			clearScreenOnExit()
+			log.Fatalln(err)
+		}
+
+		// if read is 1 that means we need to end the loop.
+		if read == 1 {
+			clearScreenOnExit()
+			err := disableRawMode(cookedState)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			os.Exit(0)
+		}
+
+	}
+}

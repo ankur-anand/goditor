@@ -33,7 +33,7 @@ func newState() state {
 }
 
 type editor struct {
-	term terminal.Term
+	term *terminal.Term
 }
 
 // StartGoditor starts a new Editor
