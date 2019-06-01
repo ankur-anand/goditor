@@ -30,6 +30,7 @@ func StartGoditor() {
 	// enable raw mode for the terminal
 	e.term.EnableRawMode()
 	for {
+		e.screen.ClearScreen()
 		readValue := e.keyboardRead()
 		e.screen.ProcessKey(readValue)
 	}
